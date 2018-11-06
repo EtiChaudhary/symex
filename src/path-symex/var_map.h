@@ -80,7 +80,8 @@ public:
   var_infot &operator()(
     const irep_idt &symbol,
     const irep_idt &suffix,
-    const typet &type);
+    const typet &type,
+    const unsigned recursion_number);
 
   var_infot &operator[](const irep_idt &full_identifier)
   {
@@ -105,7 +106,7 @@ public:
 
 protected:
   unsigned shared_count, local_count;
-
+  bool is_procedure_local(const irep_idt & symbol);
 public:
   unsigned nondet_count;  // free inputs
   unsigned dynamic_count; // memory allocation

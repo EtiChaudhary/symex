@@ -95,6 +95,9 @@ public:
     var_valt local_vars; // thread-local variables
     bool active;
 
+    //RECURSION : Previous Function on Stack!
+    irep_idt prev_function_on_stack ;
+    
     threadt():active(true)
     {
     }
@@ -196,6 +199,12 @@ public:
 
   exprt dereference_rec(const exprt &src, bool propagate);
 
+  //RECURSION
+  exprt dereference_rec(
+    const exprt &src,
+    bool propagate,
+    unsigned recursion_number);
+
   std::string array_index_as_string(const exprt &) const;
 
   unsigned get_no_thread_interleavings() const
@@ -250,20 +259,45 @@ protected:
     const exprt &src,
     bool propagate);
 
+  //RECURSION
+  exprt read(const exprt &src,
+      bool propagate,
+      unsigned recursion_number);
+
   exprt instantiate_rec(
     const exprt &src,
     bool propagate);
 
+  //RECURSION
+  exprt instantiate_rec(
+    const exprt &src,
+    bool propagate,
+    unsigned recursion_number);
+
   exprt expand_structs_and_arrays(const exprt &src);
   exprt array_theory(const exprt &src, bool propagate);
+  //RECURSION
+  exprt array_theory(const exprt &src, bool propagate, const unsigned recursion_number);
 
   exprt instantiate_rec_address(
     const exprt &src,
     bool propagate);
 
+  //RECURSION
+  exprt instantiate_rec_address(
+    const exprt &src,
+    bool propagate,
+    unsigned recursion_number);
+
   exprt read_symbol_member_index(
     const exprt &src,
     bool propagate);
+
+  //RECURSION
+  exprt read_symbol_member_index(
+    const exprt &src,
+    bool propagate,
+    unsigned recursion_number);
 
   bool is_symbol_member_index(const exprt &src) const;
 };

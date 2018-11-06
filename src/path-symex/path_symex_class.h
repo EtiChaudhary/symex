@@ -90,6 +90,13 @@ protected:
     assign(state, assignment.lhs(), assignment.rhs());
   }
 
+//RECURSION
+  void assign(
+    path_symex_statet &state,
+    const exprt &lhs,
+    const exprt &rhs,
+    unsigned rhs_recursion_number);
+
   void assign_rec(
     path_symex_statet &state,
     exprt::operandst &guard, // instantiated

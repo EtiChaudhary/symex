@@ -17,16 +17,62 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/std_expr.h>
 #include <util/prefix.h>
 
+
+//RECURSION
+bool var_mapt::is_procedure_local(const irep_idt & symbol)
+{
+    if(has_prefix(id2string(symbol), "symex_dynamic::"))
+    {
+      return false ;
+    }
+    else if(has_prefix(id2string(symbol), "symex::dynamic_object_size"))
+    {
+      return false ;
+    }
+    else
+    {
+      // Check for the presence of va_args
+      std::size_t found=id2string(symbol).find("::va_arg");
+      if(found != std::string::npos)
+      {
+        return true ;
+      }
+      else
+      {
+        const symbolt *symbol_obj=nullptr;
+        if(ns.lookup(symbol, symbol_obj))
+          throw "is_procedure_local identifier \""
+            +id2string(symbol)
+            +"\" lookup in ns failed";
+
+        if(symbol_obj->is_static_lifetime)
+        {
+          if(symbol_obj->is_thread_local)
+            return false;
+          else
+            return false;
+        }
+        else
+          return true;
+      }
+    }
+}
 var_mapt::var_infot &var_mapt::operator()(
   const irep_idt &symbol,
   const irep_idt &suffix,
-  const typet &type)
+  const typet &type,
+  const unsigned recursion_number)
 {
   assert(!symbol.empty());
 
   std::string full_identifier=
     id2string(symbol)+id2string(suffix);
-
+  
+  //RECURSION 
+  //Only suffix by recursion_number for procedure local vars
+  if(is_procedure_local(symbol))
+    full_identifier= full_identifier +"#"+std::to_string(recursion_number);
+  
   std::pair<id_mapt::iterator, bool> result;
 
   result=id_map.insert(std::pair<irep_idt, var_infot>(
