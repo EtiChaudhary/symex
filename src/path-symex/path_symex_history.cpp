@@ -12,6 +12,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "path_symex_history.h"
 
 #include <algorithm>
+#include <iostream>
 
 #include <util/decision_procedure.h>
 
@@ -39,10 +40,16 @@ void path_symex_stept::output(std::ostream &out) const
 void path_symex_stept::convert(decision_proceduret &dest) const
 {
   if(ssa_rhs.is_not_nil())
+  {
     dest << equal_exprt(ssa_lhs, ssa_rhs);
+    // std::cout<<from_expr(equal_exprt(ssa_lhs, ssa_rhs))<<"\n";
+  }
 
   if(guard.is_not_nil())
+  {
     dest << guard;
+    // std::cout<<from_expr(guard)<<"\n";
+  }
 }
 
 void path_symex_step_reft::build_history(

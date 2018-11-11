@@ -15,12 +15,109 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/arith_tools.h>
 
 #include <pointer-analysis/dereference.h>
+#include <util/suffix.h>
 
+#include <iostream>
 #ifdef DEBUG
 #include <iostream>
 #include <langapi/language_util.h>
 #endif
 
+
+static bool is_symbol_internal(const symbolt* symbol)
+{
+  const std::string &name_str=id2string(symbol->name);
+
+  if(has_prefix(name_str, CPROVER_PREFIX) ||
+     name_str=="__func__" ||
+     name_str=="__FUNCTION__" ||
+     name_str=="__PRETTY_FUNCTION__" ||
+     name_str=="argc'" ||
+     name_str=="argv'" ||
+     name_str=="envp'" ||
+     name_str=="envp_size'")
+    return true;
+
+  if(has_suffix(name_str, "return_value"))
+    return true;
+
+  // exclude nondet instructions
+  if(has_prefix(name_str, "nondet"))
+  {
+    return true;
+  }
+
+  if(has_prefix(name_str, "__VERIFIER"))
+  {
+    return true;
+  }
+
+  const std::string &file_str=id2string(symbol->location.get_file());
+
+  // don't dump internal GCC builtins
+  if(has_prefix(file_str, "gcc_builtin_headers_") &&
+     has_prefix(name_str, "__builtin_"))
+    return true;
+
+  if(name_str=="__builtin_va_start" ||
+     name_str=="__builtin_va_end" ||
+     symbol->name==ID_gcc_builtin_va_arg)
+  {
+    return true;
+  }
+
+  return false ;
+}
+
+static bool is_symbol_internal(const irep_idt& identifier)
+{
+  const std::string &name_str=id2string(identifier);
+
+  if(has_prefix(name_str, CPROVER_PREFIX) ||
+     name_str=="__func__" ||
+     name_str=="__FUNCTION__" ||
+     name_str=="__PRETTY_FUNCTION__" ||
+     name_str=="argc'" ||
+     name_str=="argv'" ||
+     name_str=="envp'" ||
+     name_str=="envp_size'")
+    return true;
+
+  if(has_suffix(name_str, "return_value"))
+    return true;
+
+  // exclude nondet instructions
+  if(has_prefix(name_str, "nondet"))
+  {
+    return true;
+  }
+
+  if(has_prefix(name_str, "symex::nondet"))
+  {
+    return true;
+  }
+
+  if(has_prefix(name_str, "symex_dynamic"))
+  {
+    return true;
+  }
+
+  if(has_prefix(name_str, "symex::deref"))
+    return true;
+
+  if(has_prefix(name_str, "symex::dynamic_object_size"))
+    return true ;
+
+  if(has_prefix(name_str, "dynamic_object"))
+    return true ;
+  
+  if(has_prefix(name_str, "__VERIFIER"))
+  {
+    return true;
+  }
+
+  return false ;
+}
 exprt path_symex_statet::read(const exprt &src, bool propagate)
 {
   #ifdef DEBUG
@@ -647,9 +744,12 @@ exprt path_symex_statet::read_symbol_member_index(
   path_symex_statet::threadt &thread=threads[get_current_thread()];
   recursion_number = recursion_map[thread.call_stack.back().current_function] ;
   
-  const symbolt* dummy;
-  if(var_map.ns.lookup(to_symbol_expr(current).get_identifier(), dummy))
+  if(!is_symbol_internal(identifier))
+  {
+    const symbolt* dummy;
+    if(var_map.ns.lookup(to_symbol_expr(current).get_identifier(), dummy))
     {
+      std::cout<<"Symbol Identifier :"<<identifier<<"\n";
       throw "Symbol not found \n\n";
     }
 
@@ -661,14 +761,15 @@ exprt path_symex_statet::read_symbol_member_index(
         recursion_number = recursion_map[dummy_function_id];
       }
     }
+  }
 
   var_mapt::var_infot &var_info=
     var_map(identifier, suffix, src.type(), recursion_number);
 
-  #ifdef DEBUG
+ // #ifdef DEBUG
   std::cout << "read_symbol_member_index_rec " << identifier
             << " var_info " << var_info.full_identifier << '\n';
-  #endif
+ // #endif
 
   // warning: reference is not stable
   var_statet &var_state=get_var_state(var_info);
@@ -784,23 +885,22 @@ exprt path_symex_statet::read_symbol_member_index(
   //RECURSION
   //To handle pointers after they have been dereferenced
   //The dereferenced variable 's recursion number should be used.
-  path_symex_statet::threadt &thread=threads[get_current_thread()];
-  recursion_number = recursion_map[thread.call_stack.back().current_function] ;
-  
-  const symbolt* dummy;
-  if(var_map.ns.lookup(to_symbol_expr(current).get_identifier(), dummy))
-    {
-      throw "Symbol not found \n\n";
-    }
+  // path_symex_statet::threadt &thread=threads[get_current_thread()];
 
-    if(!dummy->location.is_nil() && !dummy->location.is_built_in() && !is_symbol_internal(dummy))
-    {
-      irep_idt dummy_function_id = dummy->location.get_function();
-      if(dummy_function_id!="" && dummy_function_id != threads[get_current_thread()].call_stack.back().current_function)
-      {
-        recursion_number = recursion_map[dummy_function_id];
-      }
-    }
+  // const symbolt* dummy;
+  // if(var_map.ns.lookup(to_symbol_expr(current).get_identifier(), dummy))
+  //   {
+  //     throw "Symbol not found \n\n";
+  //   }
+
+  //   if(!dummy->location.is_nil() && !dummy->location.is_built_in() && !is_symbol_internal(dummy))
+  //   {
+  //     irep_idt dummy_function_id = dummy->location.get_function();
+  //     if(dummy_function_id!="" && dummy_function_id != threads[get_current_thread()].call_stack.back().current_function)
+  //     {
+  //       recursion_number = recursion_map[dummy_function_id];
+  //     }
+  //   }
 
   var_mapt::var_infot &var_info=
     var_map(identifier, suffix, src.type(), recursion_number);

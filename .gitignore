@@ -115,3 +115,5 @@ src/util/irep_ids_convert.exe
 
 # auto generated documentation
 doc/html/
+
+lib/

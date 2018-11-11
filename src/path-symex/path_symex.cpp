@@ -26,6 +26,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "path_symex_class.h"
 
+#include <iostream>
 #ifdef DEBUG
 #include <iostream>
 #endif
@@ -135,10 +136,12 @@ void path_symext::assign(
     ssa_rhs=state.read(rhs);
   }
   else
-  {
+  { 
+    //std::cout<<"Previous Function on Stack : "<<state.threads[state.get_current_thread()].prev_function_on_stack<<"\n";
     ssa_rhs=state.read(rhs, true, state.recursion_map[state.threads[state.get_current_thread()].prev_function_on_stack]+1);
   }
 
+  // std::cout<<"Assign : "<<from_expr(state.var_map.ns , "", ssa_lhs)<<" = "<<from_expr(state.var_map.ns , "", ssa_rhs)<<"\n";
   // start recursion on lhs
   exprt::operandst _guard; // start with empty guard
   assign_rec(state, _guard, lhs, ssa_lhs, ssa_rhs);
@@ -188,6 +191,8 @@ void path_symext::assign(
   exprt ssa_rhs=state.read(rhs, true, rhs_recursion_number);
   // std::cout<<"SSA_RHS : "<<from_expr(state.var_map.ns , "", ssa_rhs)<<"\n";
   // start recursion on lhs
+  // std::cout<<"Assign RecNum : "<<from_expr(state.var_map.ns , "", ssa_lhs)<<" = "<<from_expr(state.var_map.ns , "", ssa_rhs)<<"\n";
+
   exprt::operandst _guard; // start with empty guard
   assign_rec(state, _guard, lhs, ssa_lhs, ssa_rhs);
 }
@@ -819,7 +824,7 @@ void path_symext::function_call_rec(
         if(prev_function_identifer == function_identifier)
           rec_number_rhs=rec_number_rhs-1 ;
 
-        std::cout<<"Sending RHS Recursion Value for"<<prev_function_identifer<<" as  "<<rec_number_rhs<<"\n";
+        //std::cout<<"Sending RHS Recursion Value for"<<prev_function_identifer<<" as  "<<rec_number_rhs<<"\n";
          assign(state, lhs, rhs, rec_number_rhs);
       }
       else if(va_args_start_index==0)

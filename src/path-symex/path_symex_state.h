@@ -249,6 +249,11 @@ public:
   typedef std::map<irep_idt, unsigned> recursion_mapt;
   recursion_mapt recursion_map;
 
+  //RECURSION
+  exprt read(const exprt &src,
+      bool propagate,
+      unsigned recursion_number);
+  
 protected:
   unsigned current_thread;
   unsigned no_thread_interleavings;
@@ -258,11 +263,6 @@ protected:
   exprt read(
     const exprt &src,
     bool propagate);
-
-  //RECURSION
-  exprt read(const exprt &src,
-      bool propagate,
-      unsigned recursion_number);
 
   exprt instantiate_rec(
     const exprt &src,
