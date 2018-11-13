@@ -763,13 +763,17 @@ exprt path_symex_statet::read_symbol_member_index(
     }
   }
 
+  //DONOT SSA NONDET Symbols(SVCOMP 2019)
+  if(has_prefix(id2string(identifier), "symex::nondet" ))
+    return to_symbol_expr(current);
+
   var_mapt::var_infot &var_info=
     var_map(identifier, suffix, src.type(), recursion_number);
 
- // #ifdef DEBUG
+ #ifdef DEBUG
   std::cout << "read_symbol_member_index_rec " << identifier
             << " var_info " << var_info.full_identifier << '\n';
- // #endif
+ #endif
 
   // warning: reference is not stable
   var_statet &var_state=get_var_state(var_info);
@@ -999,17 +1003,18 @@ exprt path_symex_statet::dereference_rec(
 {
   if(src.id()==ID_dereference)
   {
+    // std::cout<<"Came to dereference : "<<from_expr(var_map.ns, "", src)<<"\n";
     const dereference_exprt &dereference_expr=to_dereference_expr(src);
 
     // read the address to propagate the pointers
     exprt address=read(dereference_expr.pointer(), propagate);
 
-    // now hand over to dereference
-    exprt address_dereferenced=::dereference(address, var_map.ns);
 
+     // now hand over to dereference
+     exprt address_dereferenced=::dereference(address, var_map.ns);
+     return address_dereferenced; 
     // the dereferenced address is a mixture of non-SSA and SSA symbols
     // (e.g., if-guards and array indices)
-    return address_dereferenced;
   }
 
   if(!src.has_operands())

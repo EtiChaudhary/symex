@@ -762,7 +762,7 @@ void path_symext::function_call_rec(
     thread.call_stack.back().return_rhs=nil_exprt();
     thread.call_stack.back().hidden_function=function_entry.hidden;
 
-    //Update Statistics HERE!
+    //RECURSION: Update Statistics HERE!
     state.recursion_map[function_identifier]++;
 
     #if 0

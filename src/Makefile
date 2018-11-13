@@ -16,7 +16,7 @@ setup-submodules:
 setup-cbmc: setup-submodules
 	# To make a single step build, proactively do the minisat2-download
 	$(MAKE) $(MAKEARGS) -C ../$(CPROVER_DIR)/src minisat2-download
-
+	$(MAKE) $(MAKEARGS) -C ../$(CPROVER_DIR)/src glucose-download
 # building cbmc proper
 .PHONY: cprover.dir
 cprover.dir:
