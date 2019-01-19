@@ -26,9 +26,6 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <ansi-c/ansi_c_language.h>
 #include <ansi-c/cprover_library.h>
 #include <cpp/cpp_language.h>
-#include <java_bytecode/java_bytecode_language.h>
-#include <java_bytecode/remove_exceptions.h>
-#include <java_bytecode/remove_instanceof.h>
 
 #include <goto-programs/adjust_float_expressions.h>
 #include <goto-programs/goto_convert_functions.h>
@@ -69,7 +66,7 @@ symex_parse_optionst::symex_parse_optionst(int argc, const char **argv):
 void symex_parse_optionst::eval_verbosity()
 {
   // this is our default verbosity
-  int v=messaget::M_STATISTICS;
+  int v=messaget::M_STATUS;
 
   if(cmdline.isset("verbosity"))
   {
@@ -137,7 +134,6 @@ int symex_parse_optionst::doit()
 
   register_language(new_ansi_c_language);
   register_language(new_cpp_language);
-  register_language(new_java_bytecode_language);
 
   //
   // command line options
@@ -150,7 +146,7 @@ int symex_parse_optionst::doit()
 
   try
   {
-    goto_model=initialize_goto_model(cmdline, get_message_handler(), options);
+    goto_model=initialize_goto_model(cmdline.args, get_message_handler(), options);
   }
   catch(const cprover_exception_baset &e)
   {
@@ -373,11 +369,6 @@ bool symex_parse_optionst::process_goto_program(const optionst &options)
     remove_complex(goto_model);
     remove_vector(goto_model);
 
-    // Java throw and catch -> explicit exceptional return variables:
-    // This introduces instanceof, so order is important:
-    remove_exceptions(goto_model, get_message_handler());
-    // Java instanceof -> clsid comparison:
-    remove_instanceof(goto_model, get_message_handler());
     rewrite_union(goto_model);
     adjust_float_expressions(goto_model);
 
@@ -435,8 +426,10 @@ bool symex_parse_optionst::process_goto_program(const optionst &options)
 void symex_parse_optionst::report_properties(
   const path_searcht::property_mapt &property_map)
 {
+  status() << eom;
+
   if(get_ui()==ui_message_handlert::uit::PLAIN)
-    status() << "\n** Results:" << eom;
+    result() << "** Results:" << eom;
 
   for(const auto &p : property_map)
   {
@@ -460,19 +453,22 @@ void symex_parse_optionst::report_properties(
     }
     else
     {
-      status() << "[" << p.first << "] "
-               << p.second.description << ": ";
+      result() << "[" << p.first << "] ";
+      if(!p.second.source_location.get_line().empty())
+        result() << "line " << p.second.source_location.get_line() << ' ';
+      result() << p.second.description << ": ";
       switch(p.second.status)
       {
-      case path_searcht::SUCCESS: status() << green << "SUCCESS" << reset; break;
-      case path_searcht::FAILURE: status() << red << "FAILURE" << reset; break;
-      case path_searcht::NOT_REACHED: status() << yellow << "SUCCESS" << reset << " (not reached)"; break;
+      case path_searcht::SUCCESS: result() << green << "SUCCESS" << reset; break;
+      case path_searcht::FAILURE: result() << red << "FAILURE" << reset; break;
+      case path_searcht::NOT_REACHED: result() << yellow << "SUCCESS" << reset << " (not reached)"; break;
       }
-      status() << eom;
+      result() << eom;
     }
 
     if((cmdline.isset("show-trace") ||
         cmdline.isset("trace") ||
+        cmdline.isset("compact-trace") ||
         cmdline.isset("stack-trace") ||
         cmdline.isset("xml-ui") ||
         cmdline.isset("stop-on-fail")) &&
@@ -656,9 +652,6 @@ void symex_parse_optionst::help()
     " --round-to-minus-inf         IEEE floating point rounding mode\n"
     " --round-to-zero              IEEE floating point rounding mode\n"
     HELP_FUNCTIONS
-    "\n"
-    "Java Bytecode frontend options:\n"
-    JAVA_BYTECODE_LANGUAGE_OPTIONS_HELP
     "\n"
     "Program instrumentation options:\n"
     HELP_GOTO_CHECK
