@@ -68,8 +68,14 @@ public:
   var_infot &operator()(
     const irep_idt &symbol,
     const irep_idt &suffix,
-    const exprt &original);
+    const exprt &original,
+	const unsigned recursion_number);
 
+//ONLY CALLED FOR FUNCTION_CALL_REC for symex_arg::
+  var_infot &operator()(
+    const irep_idt &symbol,
+    const irep_idt &suffix,
+    const exprt &original);
   var_infot &operator[](const irep_idt &full_identifier)
   {
     return id_map[full_identifier];
@@ -93,7 +99,7 @@ public:
 
 protected:
   unsigned shared_count, local_count;
-
+  bool is_procedure_local(const irep_idt & symbol);
 public:
   unsigned nondet_count;  // free inputs
   unsigned dynamic_count; // memory allocation

@@ -86,6 +86,9 @@ public:
     var_valt local_vars; // thread-local variables
     bool active;
 
+    //RECURSION : Previous Function on Stack!
+    irep_idt prev_function_on_stack ;
+
     threadt():active(true)
     {
     }
@@ -220,6 +223,13 @@ public:
   }
 
   exprt dereference_rec(const exprt &src, bool propagate);
+
+  //RECURSION
+  exprt dereference_rec(
+    const exprt &src,
+    bool propagate,
+    unsigned recursion_number);
+
   exprt dereference_rec_address(const exprt &src, bool propagate);
 
   std::string array_index_as_string(const exprt &) const;
@@ -266,6 +276,10 @@ public:
   typedef std::map<irep_idt, unsigned> recursion_mapt;
   recursion_mapt recursion_map;
 
+
+//RECURSION
+  exprt read(const exprt &src, bool propagate, unsigned recursion_number);
+
 protected:
   enum class statust { ACTIVE, INFEASIBLE, TERMINATED } status;
   unsigned current_thread;
@@ -277,6 +291,7 @@ protected:
     const exprt &src,
     bool propagate);
 
+
   exprt instantiate_rec(
     const exprt &src,
     bool propagate);
@@ -285,12 +300,28 @@ protected:
     const exprt &src,
     bool propagate);
 
+  optionalt<exprt> instantiate_node(
+    const exprt &src,
+    bool propagate,
+    unsigned recursion_number);
+
+  exprt instantiate_rec(
+    const exprt &src,
+    bool propagate,
+    unsigned recursion_number);
+
   exprt expand_structs_and_arrays(const exprt &src);
   exprt array_theory(const exprt &src, bool propagate);
+  exprt array_theory(const exprt &src, bool propagate, const unsigned recursion_number);
 
   exprt read_symbol_member_index(
     const exprt &src,
     bool propagate);
+
+  exprt read_symbol_member_index(
+    const exprt &src,
+    bool propagate,
+    unsigned recursion_number);
 
   bool is_symbol_member_index(const exprt &src) const;
 };
