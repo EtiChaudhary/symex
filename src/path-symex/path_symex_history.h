@@ -13,7 +13,6 @@ Author: Daniel Kroening, kroening@kroening.com
 #define CPROVER_PATH_SYMEX_PATH_SYMEX_HISTORY_H
 
 #include <limits>
-
 #include <util/base_exceptions.h>
 #include <util/std_expr.h>
 

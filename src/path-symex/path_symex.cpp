@@ -607,7 +607,6 @@ void path_symext::function_call_rec(
   #ifdef DEBUG
   std::cout << "function_call_rec: " << function.pretty() << '\n';
   #endif
-  std::cout << "function_call_rec: " << function.pretty() << '\n';
 
   if(function.id()==ID_symbol)
   {
