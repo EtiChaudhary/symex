@@ -33,8 +33,8 @@ goto_tracet build_goto_trace(
     goto_trace_stept trace_step;
 
     assert(!step.pc.is_nil());
-    trace_step.pc=state.config.locs[step.pc].target;
-    trace_step.function=step.f_identifier;
+    trace_step.pc=step.pc.target;
+    trace_step.function_id=step.pc.function_identifier;
     trace_step.thread_nr=step.thread_nr;
     trace_step.step_nr=step_nr;
     trace_step.hidden=step.hidden;
@@ -83,6 +83,13 @@ goto_tracet build_goto_trace(
     case ASSUME:
       trace_step.type=goto_trace_stept::typet::ASSUME;
       trace_step.cond_value = true;
+      break;
+
+    case GOTO:
+      DATA_INVARIANT(step.is_branch(), "GOTO step must be branch");
+      trace_step.type=goto_trace_stept::typet::GOTO;
+      trace_step.cond_expr = trace_step.pc->guard;
+      trace_step.cond_value = step.is_branch_taken();
       break;
 
     case FUNCTION_CALL:

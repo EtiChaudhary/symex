@@ -12,6 +12,9 @@ Author: Daniel Kroening, kroening@kroening.com
 #ifndef CPROVER_PATH_SYMEX_PATH_SYMEX_STATE_H
 #define CPROVER_PATH_SYMEX_PATH_SYMEX_STATE_H
 
+#include <util/cprover_prefix.h>
+
+#include "loc_ref.h"
 #include "path_symex_config.h"
 
 struct path_symex_statet
@@ -47,7 +50,7 @@ public:
 
     var_statet():
       value(nil_exprt()),
-      ssa_symbol(irep_idt())
+      ssa_symbol(irep_idt(), typet())
     {
     }
   };
@@ -134,14 +137,9 @@ public:
     current_thread=_thread;
   }
 
-  loct &get_loc() const
-  {
-    return config.locs[pc()];
-  }
-
   goto_programt::const_targett get_instruction() const
   {
-    return get_loc().target;
+    return pc().target;
   }
 
   bool is_executable() const
@@ -179,15 +177,30 @@ public:
     return threads[current_thread].pc;
   }
 
+  irep_idt function_id() const
+  {
+    PRECONDITION(current_thread<threads.size());
+    return threads[current_thread].pc.function_identifier;
+  }
+
   bool get_hide() const
   {
+    const auto &instruction = *get_instruction();
+
     // we hide if the function is hidden or the instruction is hidden
-    if(get_instruction()->source_location.get_hide())
+    if(instruction.source_location.get_hide())
       return true;
 
     if(!threads.empty() &&
        !threads[current_thread].call_stack.empty() &&
        threads[current_thread].call_stack.back().hidden_function)
+      return true;
+
+    // hide calls to __CPROVER_initialize
+    if(instruction.is_function_call() &&
+       instruction.get_function_call().function().id()==ID_symbol &&
+       to_symbol_expr(instruction.get_function_call().function()).get_identifier()==
+       CPROVER_PREFIX "initialize")
       return true;
 
     return false;

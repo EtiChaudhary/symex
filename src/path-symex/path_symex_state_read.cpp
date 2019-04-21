@@ -83,7 +83,7 @@ exprt path_symex_statet::expand_structs_and_arrays(const exprt &src)
       result.operands()[i]=expand_structs_and_arrays(new_src);
     }
 
-    return result; // done
+    return std::move(result); // done
   }
   else if(src_type.id()==ID_array) // src is an array
   {
@@ -92,14 +92,13 @@ exprt path_symex_statet::expand_structs_and_arrays(const exprt &src)
 
     if(array_type.size().is_constant())
     {
-      mp_integer size;
-      if(to_integer(array_type.size(), size))
+      auto size_int=numeric_cast<std::size_t>(to_constant_expr(array_type.size()));
+
+      if(!size_int.has_value())
         throw "failed to convert array size";
 
-      std::size_t size_int=integer2size_t(size);
-
       array_exprt result(array_type);
-      result.operands().resize(size_int);
+      result.operands().resize(size_int.value());
 
       // split it up into elements
       for(std::size_t i=0; i<size_int; ++i)
@@ -115,7 +114,7 @@ exprt path_symex_statet::expand_structs_and_arrays(const exprt &src)
         result.operands()[i]=expand_structs_and_arrays(new_src);
       }
 
-      return result; // done
+      return std::move(result); // done
     }
     else
     {
@@ -134,7 +133,7 @@ exprt path_symex_statet::expand_structs_and_arrays(const exprt &src)
     if(to_integer(vector_type.size(), size))
       throw "failed to convert vector size";
 
-    std::size_t size_int=integer2size_t(size);
+    const auto size_int=numeric_cast_v<std::size_t>(size);
 
     vector_exprt result(vector_type);
     exprt::operandst &operands=result.operands();
@@ -154,7 +153,7 @@ exprt path_symex_statet::expand_structs_and_arrays(const exprt &src)
       operands[i]=expand_structs_and_arrays(new_src);
     }
 
-    return result; // done
+    return std::move(result); // done
   }
 
   return src;
@@ -179,17 +178,16 @@ exprt path_symex_statet::array_theory(const exprt &src, bool propagate)
       {
         const typet &subtype=array_type.subtype();
 
-        mp_integer size;
-        if(to_integer(array_type.size(), size))
-          throw "failed to convert array size";
+        const auto size_int=numeric_cast<std::size_t>(array_type.size());
 
-        std::size_t size_int=integer2size_t(size);
+        if(!size_int.has_value())
+          throw "failed to convert array size";
 
         // Split it up using a cond_exprt.
         // A cond_exprt is depth 1 compared to depth n when
         // using a nesting of if_exprt
         cond_exprt cond_expr(index_expr.type());
-        cond_expr.operands().reserve(size_int*2);
+        cond_expr.operands().reserve(size_int.value()*2);
 
         for(std::size_t i=0; i<size_int; ++i)
         {
@@ -200,7 +198,7 @@ exprt path_symex_statet::array_theory(const exprt &src, bool propagate)
           cond_expr.add_case(index_equal, new_src);
         }
 
-        return cond_expr; // done
+        return std::move(cond_expr); // done
       }
     }
   }
@@ -300,8 +298,9 @@ optionalt<exprt> path_symex_statet::instantiate_node(
   }
   else if(src.id()==ID_symbol)
   {
-    // must be SSA already, or code
+    // must be SSA already, or code, or a function
     assert(src.type().id()==ID_code ||
+           src.type().id()==ID_mathematical_function ||
            src.get_bool(ID_C_SSA_symbol));
   }
   else if(src.id()=="dereference_failure")
@@ -356,7 +355,8 @@ exprt path_symex_statet::read_symbol_member_index(
   const typet &src_type=config.ns.follow(src.type());
 
   // don't touch function symbols
-  if(src_type.id()==ID_code)
+  if(src_type.id()==ID_code ||
+     src_type.id()==ID_mathematical_function)
     return nil_exprt();
 
   // unbounded array?
@@ -366,7 +366,7 @@ exprt path_symex_statet::read_symbol_member_index(
     index_exprt new_src=to_index_expr(src);
     new_src.array()=read_symbol_member_index(new_src.array(), propagate); // rec. call
     new_src.index()=instantiate_rec(new_src.index(), propagate); // rec. call
-    return new_src;
+    return std::move(new_src);
   }
 
   // is this a struct/array/vector that needs to be expanded?
@@ -468,8 +468,9 @@ exprt path_symex_statet::read_symbol_member_index(
       // ssa-ify the size
       if(var_mapt::is_unbounded_array(var_state.ssa_symbol.type()))
       {
-        exprt &size=to_array_type(var_state.ssa_symbol.type()).size();
-        size=read(size);
+        // disabled to preserve type consistency
+        // exprt &size=to_array_type(var_state.ssa_symbol.type()).size();
+        // size=read(size);
       }
     }
 
@@ -482,7 +483,8 @@ bool path_symex_statet::is_symbol_member_index(const exprt &src) const
   const typet final_type=src.type();
 
   // don't touch function symbols
-  if(config.ns.follow(final_type).id()==ID_code)
+  if(final_type.id()==ID_code ||
+     final_type.id()==ID_mathematical_function)
     return false;
 
   const exprt *current=&src;
@@ -533,10 +535,11 @@ bool path_symex_statet::is_symbol_member_index(const exprt &src) const
 std::string path_symex_statet::array_index_as_string(const exprt &src) const
 {
   exprt tmp=simplify_expr(src, config.ns);
-  mp_integer i;
 
-  if(src.id()==ID_constant && !to_integer(tmp, i))
-    return "["+integer2string(i)+"]";
+  auto index_int = numeric_cast<mp_integer>(tmp);
+
+  if(index_int.has_value())
+    return "["+integer2string(index_int.value())+"]";
   else
     return "[*]";
 }

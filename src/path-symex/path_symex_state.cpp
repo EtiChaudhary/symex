@@ -13,8 +13,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/arith_tools.h>
 #include <util/c_types.h>
-#include <util/decision_procedure.h>
-#include <util/simplify_expr.h>
+#include <solvers/decision_procedure.h>
 
 #include <langapi/language_util.h>
 
@@ -79,8 +78,6 @@ void path_symex_statet::record_step()
   assert(current_thread<threads.size());
   const auto &thread=threads[current_thread];
   step.pc=thread.pc;
-  if(!thread.call_stack.empty())
-    step.f_identifier=thread.call_stack.back().current_function;
   step.thread_nr=current_thread;
 
   // set hide flag
@@ -116,7 +113,7 @@ bool path_symex_statet::check_assertion(
   assert(instruction.is_assert());
 
   // the assertion in SSA
-  exprt assertion=read(instruction.guard);
+  exprt assertion=read(instruction.get_condition());
 
   // trivial?
   if(assertion.is_true())
@@ -129,7 +126,7 @@ bool path_symex_statet::check_assertion(
   decision_procedure.set_to(assertion, false);
 
   // check whether SAT
-  switch(decision_procedure.dec_solve())
+  switch(decision_procedure())
   {
   case decision_proceduret::resultt::D_SATISFIABLE:
     return false; // error

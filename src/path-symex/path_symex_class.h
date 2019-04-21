@@ -38,7 +38,7 @@ public:
 
     state.record_step();
     state.next_pc();
-    exprt ssa_guard=state.read(not_exprt(instruction.guard));
+    exprt ssa_guard=state.read(not_exprt(instruction.get_condition()));
     state.history->ssa_guard=ssa_guard;
   }
 
@@ -59,9 +59,15 @@ protected:
   }
 
   void function_call_rec(
-    path_symex_statet &state,
-    const code_function_callt &function_call,
+    path_symex_statet &,
+    const code_function_callt &,
     const exprt &function,
+    std::list<path_symex_statet> &further_states);
+
+  void function_call_symbol(
+    path_symex_statet &,
+    const code_function_callt &,
+    const symbol_exprt &function,
     std::list<path_symex_statet> &further_states);
 
   void return_from_function(path_symex_statet &state);

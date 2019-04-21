@@ -20,9 +20,8 @@ Author: Daniel Kroening, kroening@kroening.com
 path_searcht::resultt path_searcht::operator()(
   const goto_functionst &goto_functions)
 {
-  path_symex_configt config(ns);
+  path_symex_configt config(ns, goto_functions);
   config.set_message_handler(get_message_handler());
-  config.locs.build(goto_functions);
 
   status() << "Starting symbolic simulation" << eom;
 
@@ -30,6 +29,11 @@ path_searcht::resultt path_searcht::operator()(
   path_symex_historyt history;
 
   queue.push_back(config.initial_state());
+
+  // count locs
+  std::size_t loc_count = 0;
+  for(auto &f : goto_functions.function_map)
+    loc_count += f.second.body.instructions.size();
 
   // set up the statistics
   number_of_dropped_states=0;
@@ -40,7 +44,7 @@ path_searcht::resultt path_searcht::operator()(
   number_of_infeasible_paths=0;
   number_of_VCCs_after_simplification=0;
   number_of_failed_properties=0;
-  number_of_locs=config.locs.size();
+  number_of_locs=loc_count;
 
   // stop the time
   start_time=std::chrono::steady_clock::now();
@@ -67,9 +71,9 @@ path_searcht::resultt path_searcht::operator()(
       statet &state=tmp_queue.front();
 
       // record we have seen it
-      loc_data[state.pc().loc_number].visited=true;
+      loc_data[state.pc()].visited=true;
 
-      debug() << "Loc: #" << state.pc().loc_number
+      debug() << "Loc: " << state.pc()
               << ", queue: " << queue.size()
               << ", depth: " << state.get_depth();
       for(const auto &s : queue)
@@ -175,7 +179,7 @@ void path_searcht::report_statistics()
 {
   std::size_t number_of_visited_locations=0;
   for(const auto &l : loc_data)
-    if(l.visited)
+    if(l.second.visited)
       number_of_visited_locations++;
 
   #if 0
@@ -275,7 +279,7 @@ bool path_searcht::drop_state(const statet &state)
         break;
       }
 
-    const irep_idt id=goto_programt::loop_id(*pc);
+    const irep_idt id=goto_programt::loop_id(state.function_id(), *pc);
     path_symex_statet::unwinding_mapt::const_iterator entry=
       state.unwinding_map.find(state.pc());
     debug() << (stop?"Not unwinding":"Unwinding")
@@ -289,7 +293,7 @@ bool path_searcht::drop_state(const statet &state)
     {
       // record that failure
       status() << "Unwinding assertion failed: " << id << eom;
-      irep_idt property=id2string(pc->function)+".unwind."+
+      irep_idt property=id2string(state.function_id())+".unwind."+
                         std::to_string(pc->loop_number);
       auto &p=property_map[property];
       if(p.description.empty())
@@ -359,7 +363,7 @@ void path_searcht::check_assertion(statet &state)
 
   // the assertion in SSA
   exprt assertion=
-    state.read(instruction.guard);
+    state.read(instruction.get_condition());
 
   if(assertion.is_true())
     return; // no error, trivially
@@ -372,11 +376,8 @@ void path_searcht::check_assertion(statet &state)
   // take the time
   auto solver_start_time=std::chrono::steady_clock::now();
 
-  satcheckt satcheck;
-  bv_pointerst bv_pointers(ns, satcheck);
-
-  satcheck.set_message_handler(get_message_handler());
-  bv_pointers.set_message_handler(get_message_handler());
+  satcheckt satcheck(get_message_handler());
+  bv_pointerst bv_pointers(ns, satcheck, get_message_handler());
 
   if(!state.check_assertion(bv_pointers))
   {
@@ -414,11 +415,8 @@ bool path_searcht::is_feasible(const statet &state)
   // take the time
   auto solver_start_time=std::chrono::steady_clock::now();
 
-  satcheckt satcheck;
-  bv_pointerst bv_pointers(ns, satcheck);
-
-  satcheck.set_message_handler(get_message_handler());
-  bv_pointers.set_message_handler(get_message_handler());
+  satcheckt satcheck(get_message_handler());
+  bv_pointerst bv_pointers(ns, satcheck, get_message_handler());
 
   bool result=state.is_feasible(bv_pointers);
 

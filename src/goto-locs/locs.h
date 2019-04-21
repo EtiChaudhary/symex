@@ -37,7 +37,6 @@ class locst
 public:
   typedef std::vector<loct> loc_vectort;
   loc_vectort loc_vector;
-  loc_reft entry_loc;
 
   class function_entryt
   {
@@ -45,11 +44,13 @@ public:
     loc_reft first_loc;
     code_typet type;
     bool hidden;
-    function_entryt():hidden(false) { }
+    function_entryt():type({}, typet()), hidden(false) { }
   };
 
   typedef std::map<irep_idt, function_entryt> function_mapt;
   function_mapt function_map;
+
+  loc_reft first_loc(const irep_idt &function_id);
 
   explicit locst(const namespacet &_ns);
   void build(const goto_functionst &goto_functions);
