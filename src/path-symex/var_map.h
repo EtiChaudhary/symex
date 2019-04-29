@@ -65,6 +65,13 @@ public:
   typedef std::map<irep_idt, var_infot> id_mapt;
   id_mapt id_map;
 
+  //RECURSION
+  var_infot &operator()(
+    const irep_idt &symbol,
+    const irep_idt &suffix,
+    const exprt &original,
+	const unsigned recursion_number);
+
   var_infot &operator()(
     const irep_idt &symbol,
     const irep_idt &suffix,
@@ -94,6 +101,8 @@ public:
 protected:
   unsigned shared_count, local_count;
 
+  //RECURSION
+  bool is_procedure_local(const irep_idt & symbol);
 public:
   unsigned nondet_count;  // free inputs
   unsigned dynamic_count; // memory allocation

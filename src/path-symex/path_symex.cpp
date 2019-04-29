@@ -19,6 +19,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/simplify_expr.h>
 #include <util/std_expr.h>
 #include <util/string2int.h>
+#include <langapi/language_util.h>
 
 #ifdef DEBUG
 #include <iostream>
@@ -106,7 +107,8 @@ bool path_symext::propagate(const exprt &src)
 void path_symext::assign(
   path_symex_statet &state,
   const exprt &lhs,
-  const exprt &rhs)
+  const exprt &rhs,
+  bool return_assign)
 {
   if(rhs.id()==ID_side_effect) // catch side effects on rhs
   {
@@ -164,11 +166,28 @@ void path_symext::assign(
 
   //const exprt dereferenced_lhs=dereference_exprt(lhs_address);
 
+  bool return_assignment =false ;
   // now SSA the lhs, no propagation
   const exprt ssa_lhs=state.read_no_propagate(dereferenced_lhs);
+  if(from_expr(state.config.var_map.ns, "", lhs).find("return_value_") != std::string::npos)
+  {
+	  return_assignment = true ;
+  }
+  //RECURSION : Read normally for assignments inside a function
+  //In case of return_value (on RHS), read the last return value for the previous function
+  //Takes care of both recursive call + any normal chain of function calls
+  // read the rhs	  // read the rhs
+//  std::cout<<"Reading RHS : "<<"\n";
+  	  exprt ssa_rhs ;
 
-  // read the rhs
-  const exprt ssa_rhs=state.read(rhs);
+	if(!return_assignment && !return_assign)
+	{
+		ssa_rhs=state.read(rhs);
+	}
+	else
+	{
+		ssa_rhs=state.read(rhs, true, state.recursion_map[state.threads[state.get_current_thread()].prev_function_on_stack]+1);
+	}
 
   // start recursion on ssa_lhs
   exprt::operandst _guard; // start with empty guard
@@ -600,6 +619,16 @@ void path_symext::function_call_symbol(
   const irep_idt &function_identifier=
     function.get_identifier();
 
+  //RECURSION : Update Statistics HERE!
+      state.recursion_map[function_identifier]++;
+
+	//RECURSION : Get previous functions identifier
+	irep_idt prev_function_identifer;
+	if(!state.threads[state.get_current_thread()].call_stack.empty())
+		prev_function_identifer=state.threads[state.get_current_thread()].call_stack.back().current_function;
+	else
+		prev_function_identifer=irep_idt();
+
   // find the function
   auto f_it=
     state.config.goto_functions.function_map.find(function_identifier);
@@ -613,8 +642,16 @@ void path_symext::function_call_symbol(
   // turn the arguments into SSA
   exprt::operandst ssa_arguments=call.arguments();
   for(auto &arg : ssa_arguments)
-    arg=state.read(arg);
+  {
+	//RECURSION :In case of passing parameters :
+	//Pass the specific recursion number for RHS
+	//In case of recursive calls, subtract the current one by one.
+	unsigned rec_number_rhs=state.recursion_map[prev_function_identifer]  ;
 
+	if(prev_function_identifer == function_identifier)
+	  rec_number_rhs=rec_number_rhs-1 ;
+    arg=state.read(arg, true,rec_number_rhs);
+  }
   // Fix types of the arguments, if needed
   {
     const code_typet::parameterst &parameters=
@@ -760,7 +797,7 @@ void path_symext::function_call_symbol(
   }
 
   // update statistics
-  state.recursion_map[function_identifier]++;
+//  state.recursion_map[function_identifier]++;
 
   // set the new PC
   assert(!function_entry.body.instructions.empty());
@@ -839,14 +876,18 @@ void path_symext::return_from_function(path_symex_statet &state)
     // update statistics
     state.recursion_map[thread.call_stack.back().current_function]--;
 
+    //RECURSION
+	thread.prev_function_on_stack = thread.call_stack.back().current_function ;
+
     // set PC to return location
     thread.pc=thread.call_stack.back().return_location;
 
     // assign the return value
     if(thread.call_stack.back().return_rhs.is_not_nil() &&
        thread.call_stack.back().return_lhs.is_not_nil())
+    	//RECURSION
       assign(state, thread.call_stack.back().return_lhs,
-                    thread.call_stack.back().return_rhs);
+                    thread.call_stack.back().return_rhs,true);
 
     // restore the local variables
     for(path_symex_statet::var_state_mapt::const_iterator

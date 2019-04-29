@@ -89,10 +89,12 @@ protected:
     const exprt &lhs,
     const side_effect_exprt &code);
 
+  //RECURSION
   void assign(
     path_symex_statet &state,
     const exprt &lhs,
-    const exprt &rhs);
+    const exprt &rhs,
+	bool return_assign = false);
 
   void assign(
     path_symex_statet &state,
